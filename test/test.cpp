@@ -1,4 +1,5 @@
 #include "nms-simd.h"
+#include "nms-utils.h"
 
 #include <gtest/gtest.h>
 
@@ -11,6 +12,39 @@
 constexpr size_t g_rectangleSize = 1000;
 constexpr float g_scoreThreshold = 0.6;
 constexpr float g_nmsThreshold = 0.4;
+
+struct Rect
+{
+	int x1;
+	int y1;
+	int x2;
+	int y2;
+};
+
+std::vector<size_t> runNmsSimd1(const std::vector<Rect>& rects, const std::vector<float>& scores, float scoreThreshold, float nmsThreshold)
+{
+	std::vector<size_t> passRectIndices = NMS_SIMD::createRectangleIndices(scores, scoreThreshold);
+
+	NMS_SIMD::Rectangles simdRects;
+	NMS_SIMD::createRectangles(&simdRects, passRectIndices.size());
+
+	for(size_t i = 0; i < passRectIndices.size(); i++)
+	{
+		size_t rectIdx = passRectIndices[i];
+		simdRects.x1[i] = rects[rectIdx].x1;
+		simdRects.x2[i] = rects[rectIdx].x2;
+		simdRects.y1[i] = rects[rectIdx].y1;
+		simdRects.y2[i] = rects[rectIdx].y2;
+	}
+
+	nmsSimd1(simdRects, nmsThreshold);
+
+	std::vector<size_t> indices = NMS_SIMD::getValidIndices(simdRects, passRectIndices);
+
+	NMS_SIMD::destroyRectangles(&simdRects);
+
+	return indices;
+}
 
 TEST(NMS, SyntheticData)
 {

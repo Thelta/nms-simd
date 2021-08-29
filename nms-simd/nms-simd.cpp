@@ -1,7 +1,7 @@
+#include "nms-simd.h"
+
 #include <immintrin.h>
 #include <algorithm>
-
-#include "nms-simd.h"
 
 __forceinline __m256 compareRectangles(size_t readIdx,
 									   __m256i passX1_8,
@@ -123,63 +123,4 @@ void NMS_SIMD::nmsSimd1(const Rectangles& rects, float threshold)
 			}
 		}
 	}
-}
-
-std::vector<size_t> NMS_SIMD::runNmsSimd1(const std::vector<Rect>& rects, const std::vector<float>& scores, float scoreThreshold, float nmsThreshold)
-{
-	std::vector<size_t> passRectIndices;
-	for(size_t i = 0; i < scores.size(); i++)
-	{
-		if(scores[i] >= scoreThreshold)
-		{
-			passRectIndices.push_back(i);
-		}
-	}
-
-	std::sort(passRectIndices.begin(), passRectIndices.end(), [&](size_t a, size_t b) {
-		return scores[a] > scores[b];
-			  });
-
-	Rectangles simdRects;
-	simdRects.count = passRectIndices.size();
-	simdRects.simdCount = (simdRects.count + 7) / 8 * 8 + 7;
-	uint32_t* buffer = new uint32_t[5 * simdRects.simdCount];
-	simdRects.x1 = buffer;
-	simdRects.x2 = buffer + simdRects.simdCount;
-	simdRects.y1 = buffer + simdRects.simdCount * 2;
-	simdRects.y2 = buffer + simdRects.simdCount * 3;
-	simdRects.validness = buffer + simdRects.simdCount * 4;
-
-	for(size_t i = 0; i < simdRects.count; i++)
-	{
-		simdRects.validness[i] = 0xFFFFFFFF;
-	}
-	for(size_t i = simdRects.count; i < simdRects.simdCount; i++)
-	{
-		simdRects.validness[i] = 0;
-	}
-
-	for(size_t i = 0; i < passRectIndices.size(); i++)
-	{
-		size_t rectIdx = passRectIndices[i];
-		simdRects.x1[i] = rects[rectIdx].x1;
-		simdRects.x2[i] = rects[rectIdx].x2;
-		simdRects.y1[i] = rects[rectIdx].y1;
-		simdRects.y2[i] = rects[rectIdx].y2;
-	}
-
-	nmsSimd1(simdRects, nmsThreshold);
-
-	std::vector<size_t> indices;
-	for(size_t i = 0; i < simdRects.count; i++)
-	{
-		if(simdRects.validness[i] != 0)
-		{
-			indices.push_back(passRectIndices[i]);
-		}
-	}
-
-	delete[] buffer;
-
-	return indices;
 }

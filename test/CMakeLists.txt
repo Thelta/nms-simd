@@ -31,7 +31,6 @@ target_link_options(${PROJECT_NAME} PRIVATE /fsanitize=address)
 target_compile_options(${PROJECT_NAME} PRIVATE /fsanitize=address)
 set(addressSanitizerEnabled true)
 
-
 target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/arch:AVX2>)
 
 include(GoogleTest)
