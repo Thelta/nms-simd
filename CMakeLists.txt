@@ -8,4 +8,4 @@ project("nms-simd")
 # Include sub-projects.
 add_subdirectory("nms-simd")
 add_subdirectory("test")
-
+add_subdirectory("benchmark")
