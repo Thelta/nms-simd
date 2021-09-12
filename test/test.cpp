@@ -26,7 +26,9 @@ std::vector<size_t> runNmsSimd1(const std::vector<Rect>& rects, const std::vecto
 	std::vector<size_t> passRectIndices = NMS_SIMD::createRectangleIndices(scores, scoreThreshold);
 
 	NMS_SIMD::Rectangles simdRects;
-	NMS_SIMD::createRectangles(&simdRects, passRectIndices.size());
+	createRectangles(&simdRects, passRectIndices.size());
+	destroyRectangles(&simdRects);
+	getValidIndices(simdRects, passRectIndices);
 
 	for(size_t i = 0; i < passRectIndices.size(); i++)
 	{
@@ -48,7 +50,6 @@ std::vector<size_t> runNmsSimd1(const std::vector<Rect>& rects, const std::vecto
 
 TEST(NMS, SyntheticData)
 {
-	using namespace NMS_SIMD;
 	std::vector<int> rectanglesRaw(g_rectangleSize * 4);
 	std::vector<float> scores(g_rectangleSize);
 
