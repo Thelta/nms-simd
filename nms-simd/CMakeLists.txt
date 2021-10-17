@@ -11,3 +11,11 @@ add_library(nms-simd
 	nms-utils.h
 	nms-utils.cpp
 )
+if(${MSVC})
+	target_compile_options(nms-simd PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/arch:AVX2>)
+	target_compile_options(nms-simd PRIVATE $<$<CONFIG:Release>:/O2>)
+else()
+	target_compile_options(nms-simd PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-mavx2)
+	target_compile_options(nms-simd PRIVATE $<$<CONFIG:Release>:-O2>)
+endif ()
+

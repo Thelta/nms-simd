@@ -22,6 +22,3 @@ target_include_directories(
 			"../nms-simd"
 			${PCG_INCLUDE_DIRS}
 )
-
-target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/arch:AVX2>)
-
