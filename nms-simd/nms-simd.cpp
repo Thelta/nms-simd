@@ -1,9 +1,19 @@
 #include "nms-simd.h"
 
 #include <immintrin.h>
-#include <algorithm>
 
-__forceinline __m256 compareRectangles(size_t readIdx,
+#if defined(__GNUC__)
+#define NMS_INLINE __attribute__((always_inline))
+#elif defined(__clang__)
+#define NMS_INLINE __attribute__((always_inline))
+#elif defined(_MSVC_LANG)
+#define NMS_INLINE __forceinline
+#else
+#define NMS_INLINE
+#warning "Unknown compiler, can't force inlining."
+#endif
+
+NMS_INLINE __m256 compareRectangles(size_t readIdx,
 									   __m256i passX1_8,
 									   __m256i passX2_8,
 									   __m256i passY1_8,
