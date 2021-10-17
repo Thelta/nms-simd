@@ -68,3 +68,21 @@ std::vector<size_t> NMS_SIMD::getValidIndices(const NMS_SIMD::Rectangles& rectan
 
 	return validIndices;
 }
+
+std::vector<size_t> NMS_SIMD::createRectangleIndices(const float* scores, size_t scoreCount, float scoreThreshold)
+{
+	std::vector<size_t> passRectIndices;
+	for(size_t i = 0; i < scoreCount; i++)
+	{
+		if(scores[i] >= scoreThreshold)
+		{
+			passRectIndices.push_back(i);
+		}
+	}
+
+	std::sort(passRectIndices.begin(), passRectIndices.end(), [&](size_t a, size_t b) {
+		return scores[a] > scores[b];
+	});
+
+	return passRectIndices;
+}
