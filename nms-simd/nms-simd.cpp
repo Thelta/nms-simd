@@ -3,9 +3,9 @@
 #include <immintrin.h>
 
 #if defined(__GNUC__)
-#define NMS_INLINE __attribute__((always_inline))
+#define NMS_INLINE __attribute__((always_inline)) inline
 #elif defined(__clang__)
-#define NMS_INLINE __attribute__((always_inline))
+#define NMS_INLINE __attribute__((always_inline)) inline
 #elif defined(_MSVC_LANG)
 #define NMS_INLINE __forceinline
 #else

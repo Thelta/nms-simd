@@ -1,6 +1,5 @@
 project(py_nms_simd)
 
-#find_package(Python COMPONENTS Interpreter Development REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
 
 add_library(
@@ -9,14 +8,12 @@ add_library(
 	py-utils.cpp
 )
 
+set_target_properties(py_utils PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+
 target_link_libraries(
 	py_utils
 	pybind11::module
-	fmt::fmt-header-only
 )
-
-find_package(fmt CONFIG REQUIRED)
-
 target_include_directories(
 	py_utils
 	PRIVATE "../nms-simd"
