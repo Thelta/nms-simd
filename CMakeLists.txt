@@ -11,13 +11,12 @@ project("nms-simd")
 
 # Include sub-projects.
 add_subdirectory("nms-simd")
+if(${NMS_SIMD_BUILD_PYTHON})
+	add_subdirectory("python")
+endif()
 if(${NMS_SIMD_BUILD_TEST})
 	add_subdirectory("test")
 endif ()
 if(${NMS_SIMD_BUILD_BENCHMARK})
 	add_subdirectory("benchmark")
-endif()
-
-if(${NMS_SIMD_BUILD_PYTHON})
-	add_subdirectory("python")
 endif()
