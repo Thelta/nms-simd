@@ -147,5 +147,5 @@ A list that represents selected indices.
 - score_threshold: A float value to threshold to filter boxes by score.
 - nms_threshold: A float value to threshold boxes overlap.
 
-
-
+## License
+The BSD 3-Clause License - see [`LICENSE`](LICENSE) for more details

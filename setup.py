@@ -1,3 +1,5 @@
+# Copyright (c) 2016 The Pybind Development Team, All rights reserved.
+
 import os
 import re
 import subprocess
