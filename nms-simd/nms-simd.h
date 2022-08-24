@@ -6,6 +6,6 @@
 
 namespace NMS_SIMD
 {
-	void nmsSimd1(const Rectangles& rects, float threshold);
+	std::vector<int32_t> nmsSimd1(const Rectangles& rects, float threshold);
 }
 

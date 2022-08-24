@@ -8,6 +8,7 @@
 #include <opencv2/dnn/dnn.hpp>
 #include <random>
 #include <vector>
+#include <thread>
 
 #include <pcg_random.hpp>
 
@@ -23,7 +24,7 @@ struct Rect
 	int y2;
 };
 
-std::vector<size_t> runNmsSimd1(const std::vector<Rect>& rects, const std::vector<float>& scores, float scoreThreshold, float nmsThreshold)
+std::vector<int32_t> runNmsSimd1(const std::vector<Rect>& rects, const std::vector<float>& scores, float scoreThreshold, float nmsThreshold)
 {
 	std::vector<size_t> passRectIndices = NMS_SIMD::createRectangleIndices(scores, scoreThreshold);
 
@@ -40,9 +41,12 @@ std::vector<size_t> runNmsSimd1(const std::vector<Rect>& rects, const std::vecto
 		simdRects.y2[i] = rects[rectIdx].y2;
 	}
 
-	nmsSimd1(simdRects, nmsThreshold);
-
-	std::vector<size_t> indices = NMS_SIMD::getValidIndices(simdRects, passRectIndices);
+	auto idx = nmsSimd1(simdRects, nmsThreshold);
+	std::vector<int32_t> indices(idx.size());
+	for(size_t i = 0; i < indices.size(); i++)
+	{
+		indices[i] = passRectIndices[idx[i]];
+	}
 
 	NMS_SIMD::destroyRectangles(&simdRects);
 
@@ -93,6 +97,7 @@ TEST(NMS, SyntheticData)
 
 	std::vector<Rect> simdRectangles(g_rectangleSize);
 	std::copy(rectanglesRaw.data(), rectanglesRaw.data() + rectanglesRaw.size(), (int*)simdRectangles.data());
+
 	auto result = runNmsSimd1(simdRectangles, scores, g_scoreThreshold, g_nmsThreshold);
 
 	ASSERT_EQ(result.size(), cvIndices.size());
@@ -100,4 +105,5 @@ TEST(NMS, SyntheticData)
 	{
 		EXPECT_EQ(result[i], cvIndices[i]) << "idx " << i;
 	}
+
 }

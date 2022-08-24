@@ -1,6 +1,8 @@
 #include "nms-simd.h"
+#include "nms-utils.h"
 
 #include <immintrin.h>
+#include <numeric>
 
 #if defined(__GNUC__)
 #define NMS_INLINE __attribute__((always_inline)) inline
@@ -13,17 +15,21 @@
 #warning "Unknown compiler, can't force inlining."
 #endif
 
-NMS_INLINE __m256 compareRectangles(size_t readIdx,
-									   __m256i passX1_8,
-									   __m256i passX2_8,
-									   __m256i passY1_8,
-									   __m256i passY2_8,
-									   __m256i passArea_8,
-									   __m256i x1_8,
-									   __m256i x2_8,
-									   __m256i y1_8,
-									   __m256i y2_8,
-									   __m256 threshold_8)
+static const int32_t __attribute__ ((aligned (256))) _permuteMask[2040] = {
+		0, 9, 10, 11, 12, 13, 14, 15, 1, 9, 10, 11, 12, 13, 14, 15, 0, 1, 10, 11, 12, 13, 14, 15, 2, 9, 10, 11, 12, 13, 14, 15, 0, 2, 10, 11, 12, 13, 14, 15, 1, 2, 10, 11, 12, 13, 14, 15, 0, 1, 2, 11, 12, 13, 14, 15, 3, 9, 10, 11, 12, 13, 14, 15, 0, 3, 10, 11, 12, 13, 14, 15, 1, 3, 10, 11, 12, 13, 14, 15, 0, 1, 3, 11, 12, 13, 14, 15, 2, 3, 10, 11, 12, 13, 14, 15, 0, 2, 3, 11, 12, 13, 14, 15, 1, 2, 3, 11, 12, 13, 14, 15, 0, 1, 2, 3, 12, 13, 14, 15, 4, 9, 10, 11, 12, 13, 14, 15, 0, 4, 10, 11, 12, 13, 14, 15, 1, 4, 10, 11, 12, 13, 14, 15, 0, 1, 4, 11, 12, 13, 14, 15, 2, 4, 10, 11, 12, 13, 14, 15, 0, 2, 4, 11, 12, 13, 14, 15, 1, 2, 4, 11, 12, 13, 14, 15, 0, 1, 2, 4, 12, 13, 14, 15, 3, 4, 10, 11, 12, 13, 14, 15, 0, 3, 4, 11, 12, 13, 14, 15, 1, 3, 4, 11, 12, 13, 14, 15, 0, 1, 3, 4, 12, 13, 14, 15, 2, 3, 4, 11, 12, 13, 14, 15, 0, 2, 3, 4, 12, 13, 14, 15, 1, 2, 3, 4, 12, 13, 14, 15, 0, 1, 2, 3, 4, 13, 14, 15, 5, 9, 10, 11, 12, 13, 14, 15, 0, 5, 10, 11, 12, 13, 14, 15, 1, 5, 10, 11, 12, 13, 14, 15, 0, 1, 5, 11, 12, 13, 14, 15, 2, 5, 10, 11, 12, 13, 14, 15, 0, 2, 5, 11, 12, 13, 14, 15, 1, 2, 5, 11, 12, 13, 14, 15, 0, 1, 2, 5, 12, 13, 14, 15, 3, 5, 10, 11, 12, 13, 14, 15, 0, 3, 5, 11, 12, 13, 14, 15, 1, 3, 5, 11, 12, 13, 14, 15, 0, 1, 3, 5, 12, 13, 14, 15, 2, 3, 5, 11, 12, 13, 14, 15, 0, 2, 3, 5, 12, 13, 14, 15, 1, 2, 3, 5, 12, 13, 14, 15, 0, 1, 2, 3, 5, 13, 14, 15, 4, 5, 10, 11, 12, 13, 14, 15, 0, 4, 5, 11, 12, 13, 14, 15, 1, 4, 5, 11, 12, 13, 14, 15, 0, 1, 4, 5, 12, 13, 14, 15, 2, 4, 5, 11, 12, 13, 14, 15, 0, 2, 4, 5, 12, 13, 14, 15, 1, 2, 4, 5, 12, 13, 14, 15, 0, 1, 2, 4, 5, 13, 14, 15, 3, 4, 5, 11, 12, 13, 14, 15, 0, 3, 4, 5, 12, 13, 14, 15, 1, 3, 4, 5, 12, 13, 14, 15, 0, 1, 3, 4, 5, 13, 14, 15, 2, 3, 4, 5, 12, 13, 14, 15, 0, 2, 3, 4, 5, 13, 14, 15, 1, 2, 3, 4, 5, 13, 14, 15, 0, 1, 2, 3, 4, 5, 14, 15, 6, 9, 10, 11, 12, 13, 14, 15, 0, 6, 10, 11, 12, 13, 14, 15, 1, 6, 10, 11, 12, 13, 14, 15, 0, 1, 6, 11, 12, 13, 14, 15, 2, 6, 10, 11, 12, 13, 14, 15, 0, 2, 6, 11, 12, 13, 14, 15, 1, 2, 6, 11, 12, 13, 14, 15, 0, 1, 2, 6, 12, 13, 14, 15, 3, 6, 10, 11, 12, 13, 14, 15, 0, 3, 6, 11, 12, 13, 14, 15, 1, 3, 6, 11, 12, 13, 14, 15, 0, 1, 3, 6, 12, 13, 14, 15, 2, 3, 6, 11, 12, 13, 14, 15, 0, 2, 3, 6, 12, 13, 14, 15, 1, 2, 3, 6, 12, 13, 14, 15, 0, 1, 2, 3, 6, 13, 14, 15, 4, 6, 10, 11, 12, 13, 14, 15, 0, 4, 6, 11, 12, 13, 14, 15, 1, 4, 6, 11, 12, 13, 14, 15, 0, 1, 4, 6, 12, 13, 14, 15, 2, 4, 6, 11, 12, 13, 14, 15, 0, 2, 4, 6, 12, 13, 14, 15, 1, 2, 4, 6, 12, 13, 14, 15, 0, 1, 2, 4, 6, 13, 14, 15, 3, 4, 6, 11, 12, 13, 14, 15, 0, 3, 4, 6, 12, 13, 14, 15, 1, 3, 4, 6, 12, 13, 14, 15, 0, 1, 3, 4, 6, 13, 14, 15, 2, 3, 4, 6, 12, 13, 14, 15, 0, 2, 3, 4, 6, 13, 14, 15, 1, 2, 3, 4, 6, 13, 14, 15, 0, 1, 2, 3, 4, 6, 14, 15, 5, 6, 10, 11, 12, 13, 14, 15, 0, 5, 6, 11, 12, 13, 14, 15, 1, 5, 6, 11, 12, 13, 14, 15, 0, 1, 5, 6, 12, 13, 14, 15, 2, 5, 6, 11, 12, 13, 14, 15, 0, 2, 5, 6, 12, 13, 14, 15, 1, 2, 5, 6, 12, 13, 14, 15, 0, 1, 2, 5, 6, 13, 14, 15, 3, 5, 6, 11, 12, 13, 14, 15, 0, 3, 5, 6, 12, 13, 14, 15, 1, 3, 5, 6, 12, 13, 14, 15, 0, 1, 3, 5, 6, 13, 14, 15, 2, 3, 5, 6, 12, 13, 14, 15, 0, 2, 3, 5, 6, 13, 14, 15, 1, 2, 3, 5, 6, 13, 14, 15, 0, 1, 2, 3, 5, 6, 14, 15, 4, 5, 6, 11, 12, 13, 14, 15, 0, 4, 5, 6, 12, 13, 14, 15, 1, 4, 5, 6, 12, 13, 14, 15, 0, 1, 4, 5, 6, 13, 14, 15, 2, 4, 5, 6, 12, 13, 14, 15, 0, 2, 4, 5, 6, 13, 14, 15, 1, 2, 4, 5, 6, 13, 14, 15, 0, 1, 2, 4, 5, 6, 14, 15, 3, 4, 5, 6, 12, 13, 14, 15, 0, 3, 4, 5, 6, 13, 14, 15, 1, 3, 4, 5, 6, 13, 14, 15, 0, 1, 3, 4, 5, 6, 14, 15, 2, 3, 4, 5, 6, 13, 14, 15, 0, 2, 3, 4, 5, 6, 14, 15, 1, 2, 3, 4, 5, 6, 14, 15, 0, 1, 2, 3, 4, 5, 6, 15, 7, 9, 10, 11, 12, 13, 14, 15, 0, 7, 10, 11, 12, 13, 14, 15, 1, 7, 10, 11, 12, 13, 14, 15, 0, 1, 7, 11, 12, 13, 14, 15, 2, 7, 10, 11, 12, 13, 14, 15, 0, 2, 7, 11, 12, 13, 14, 15, 1, 2, 7, 11, 12, 13, 14, 15, 0, 1, 2, 7, 12, 13, 14, 15, 3, 7, 10, 11, 12, 13, 14, 15, 0, 3, 7, 11, 12, 13, 14, 15, 1, 3, 7, 11, 12, 13, 14, 15, 0, 1, 3, 7, 12, 13, 14, 15, 2, 3, 7, 11, 12, 13, 14, 15, 0, 2, 3, 7, 12, 13, 14, 15, 1, 2, 3, 7, 12, 13, 14, 15, 0, 1, 2, 3, 7, 13, 14, 15, 4, 7, 10, 11, 12, 13, 14, 15, 0, 4, 7, 11, 12, 13, 14, 15, 1, 4, 7, 11, 12, 13, 14, 15, 0, 1, 4, 7, 12, 13, 14, 15, 2, 4, 7, 11, 12, 13, 14, 15, 0, 2, 4, 7, 12, 13, 14, 15, 1, 2, 4, 7, 12, 13, 14, 15, 0, 1, 2, 4, 7, 13, 14, 15, 3, 4, 7, 11, 12, 13, 14, 15, 0, 3, 4, 7, 12, 13, 14, 15, 1, 3, 4, 7, 12, 13, 14, 15, 0, 1, 3, 4, 7, 13, 14, 15, 2, 3, 4, 7, 12, 13, 14, 15, 0, 2, 3, 4, 7, 13, 14, 15, 1, 2, 3, 4, 7, 13, 14, 15, 0, 1, 2, 3, 4, 7, 14, 15, 5, 7, 10, 11, 12, 13, 14, 15, 0, 5, 7, 11, 12, 13, 14, 15, 1, 5, 7, 11, 12, 13, 14, 15, 0, 1, 5, 7, 12, 13, 14, 15, 2, 5, 7, 11, 12, 13, 14, 15, 0, 2, 5, 7, 12, 13, 14, 15, 1, 2, 5, 7, 12, 13, 14, 15, 0, 1, 2, 5, 7, 13, 14, 15, 3, 5, 7, 11, 12, 13, 14, 15, 0, 3, 5, 7, 12, 13, 14, 15, 1, 3, 5, 7, 12, 13, 14, 15, 0, 1, 3, 5, 7, 13, 14, 15, 2, 3, 5, 7, 12, 13, 14, 15, 0, 2, 3, 5, 7, 13, 14, 15, 1, 2, 3, 5, 7, 13, 14, 15, 0, 1, 2, 3, 5, 7, 14, 15, 4, 5, 7, 11, 12, 13, 14, 15, 0, 4, 5, 7, 12, 13, 14, 15, 1, 4, 5, 7, 12, 13, 14, 15, 0, 1, 4, 5, 7, 13, 14, 15, 2, 4, 5, 7, 12, 13, 14, 15, 0, 2, 4, 5, 7, 13, 14, 15, 1, 2, 4, 5, 7, 13, 14, 15, 0, 1, 2, 4, 5, 7, 14, 15, 3, 4, 5, 7, 12, 13, 14, 15, 0, 3, 4, 5, 7, 13, 14, 15, 1, 3, 4, 5, 7, 13, 14, 15, 0, 1, 3, 4, 5, 7, 14, 15, 2, 3, 4, 5, 7, 13, 14, 15, 0, 2, 3, 4, 5, 7, 14, 15, 1, 2, 3, 4, 5, 7, 14, 15, 0, 1, 2, 3, 4, 5, 7, 15, 6, 7, 10, 11, 12, 13, 14, 15, 0, 6, 7, 11, 12, 13, 14, 15, 1, 6, 7, 11, 12, 13, 14, 15, 0, 1, 6, 7, 12, 13, 14, 15, 2, 6, 7, 11, 12, 13, 14, 15, 0, 2, 6, 7, 12, 13, 14, 15, 1, 2, 6, 7, 12, 13, 14, 15, 0, 1, 2, 6, 7, 13, 14, 15, 3, 6, 7, 11, 12, 13, 14, 15, 0, 3, 6, 7, 12, 13, 14, 15, 1, 3, 6, 7, 12, 13, 14, 15, 0, 1, 3, 6, 7, 13, 14, 15, 2, 3, 6, 7, 12, 13, 14, 15, 0, 2, 3, 6, 7, 13, 14, 15, 1, 2, 3, 6, 7, 13, 14, 15, 0, 1, 2, 3, 6, 7, 14, 15, 4, 6, 7, 11, 12, 13, 14, 15, 0, 4, 6, 7, 12, 13, 14, 15, 1, 4, 6, 7, 12, 13, 14, 15, 0, 1, 4, 6, 7, 13, 14, 15, 2, 4, 6, 7, 12, 13, 14, 15, 0, 2, 4, 6, 7, 13, 14, 15, 1, 2, 4, 6, 7, 13, 14, 15, 0, 1, 2, 4, 6, 7, 14, 15, 3, 4, 6, 7, 12, 13, 14, 15, 0, 3, 4, 6, 7, 13, 14, 15, 1, 3, 4, 6, 7, 13, 14, 15, 0, 1, 3, 4, 6, 7, 14, 15, 2, 3, 4, 6, 7, 13, 14, 15, 0, 2, 3, 4, 6, 7, 14, 15, 1, 2, 3, 4, 6, 7, 14, 15, 0, 1, 2, 3, 4, 6, 7, 15, 5, 6, 7, 11, 12, 13, 14, 15, 0, 5, 6, 7, 12, 13, 14, 15, 1, 5, 6, 7, 12, 13, 14, 15, 0, 1, 5, 6, 7, 13, 14, 15, 2, 5, 6, 7, 12, 13, 14, 15, 0, 2, 5, 6, 7, 13, 14, 15, 1, 2, 5, 6, 7, 13, 14, 15, 0, 1, 2, 5, 6, 7, 14, 15, 3, 5, 6, 7, 12, 13, 14, 15, 0, 3, 5, 6, 7, 13, 14, 15, 1, 3, 5, 6, 7, 13, 14, 15, 0, 1, 3, 5, 6, 7, 14, 15, 2, 3, 5, 6, 7, 13, 14, 15, 0, 2, 3, 5, 6, 7, 14, 15, 1, 2, 3, 5, 6, 7, 14, 15, 0, 1, 2, 3, 5, 6, 7, 15, 4, 5, 6, 7, 12, 13, 14, 15, 0, 4, 5, 6, 7, 13, 14, 15, 1, 4, 5, 6, 7, 13, 14, 15, 0, 1, 4, 5, 6, 7, 14, 15, 2, 4, 5, 6, 7, 13, 14, 15, 0, 2, 4, 5, 6, 7, 14, 15, 1, 2, 4, 5, 6, 7, 14, 15, 0, 1, 2, 4, 5, 6, 7, 15, 3, 4, 5, 6, 7, 13, 14, 15, 0, 3, 4, 5, 6, 7, 14, 15, 1, 3, 4, 5, 6, 7, 14, 15, 0, 1, 3, 4, 5, 6, 7, 15, 2, 3, 4, 5, 6, 7, 14, 15, 0, 2, 3, 4, 5, 6, 7, 15, 1, 2, 3, 4, 5, 6, 7, 15, 0, 1, 2, 3, 4, 5, 6, 7
+};
+
+NMS_INLINE static __m256 compareRectangles(size_t readIdx,
+										   __m256i passX1_8,
+										   __m256i passX2_8,
+										   __m256i passY1_8,
+										   __m256i passY2_8,
+										   __m256i passArea_8,
+										   __m256i x1_8,
+										   __m256i x2_8,
+										   __m256i y1_8,
+										   __m256i y2_8,
+										   __m256 threshold_8)
 {
 	const auto zero_8 = _mm256_set1_epi32(0);
 	const auto one_8 = _mm256_set1_epi32(1);
@@ -35,10 +41,17 @@ NMS_INLINE __m256 compareRectangles(size_t readIdx,
 
 	// (interX2 - interX1)
 	auto interXDiff_8 = _mm256_sub_epi32(interX2_8, interX1_8);
+//	interXDiff_8 = _mm256_add_epi32(interXDiff_8, one_8);
 
 	// (interY2 - interY1)
 	auto interYDiff_8 = _mm256_sub_epi32(interY2_8, interY1_8);
+//	interYDiff_8 = _mm256_add_epi32(interYDiff_8, one_8);
 
+	// The reason why we are comparing one instead of zero
+	// is if both rectangles are not rectangle (aka don't have any height or width)
+	// we can escape from division by zero.
+	// This is also why we are adding one to interXDiff and
+	// InterYDiff.
 	auto bboxWidth_8 = _mm256_max_epi32(zero_8, interXDiff_8);
 	auto bboxHeight_8 = _mm256_max_epi32(zero_8, interYDiff_8);
 
@@ -60,45 +73,50 @@ NMS_INLINE __m256 compareRectangles(size_t readIdx,
 
 	return _mm256_cmp_ps(threshold_8, overlap_8, 13);
 }
+#define PL_IMPLEMENTATION 1
+#define USE_PL 1
+#define  PL_IMPL_COLLECTION_BUFFER_BYTE_QTY 8 * 1024 * 1024
+#include "palanteer.h"
 
-void NMS_SIMD::nmsSimd1(const Rectangles& rects, float threshold)
+std::vector<int32_t> NMS_SIMD::nmsSimd1(const Rectangles& rects, float threshold)
 {
-	size_t passIdx = 0;
+	plInitAndStart("nms");
+
 	size_t passCount = 1;
 
 	auto threshold_8 = _mm256_set1_ps(threshold);
 
-	for(size_t pass = 0; pass < passCount; pass++)
+	std::vector<int32_t> idx(rects.simdCount);
+	std::iota(idx.begin(), idx.begin() + rects.simdCount, 0);
+	idx.resize(rects.count);
+
+	size_t pass = 0;
+	plBegin("AllOfIt");
+	for(pass = 0; pass < passCount; pass++)
 	{
 		bool isFound = false;
 
-		auto passX1_8 = _mm256_set1_epi32(rects.x1[passIdx]);
-		auto passX2_8 = _mm256_set1_epi32(rects.x2[passIdx]);
-		auto passY1_8 = _mm256_set1_epi32(rects.y1[passIdx]);
-		auto passY2_8 = _mm256_set1_epi32(rects.y2[passIdx]);
+		auto validIdx = idx[pass];
+		auto passX1_8 = _mm256_set1_epi32(rects.x1[validIdx]);
+		auto passX2_8 = _mm256_set1_epi32(rects.x2[validIdx]);
+		auto passY1_8 = _mm256_set1_epi32(rects.y1[validIdx]);
+		auto passY2_8 = _mm256_set1_epi32(rects.y2[validIdx]);
 
-		auto passWidth = rects.x2[passIdx] - rects.x1[passIdx];
-		auto passHeight = rects.y2[passIdx] - rects.y1[passIdx];
+		auto passWidth = rects.x2[validIdx] - rects.x1[validIdx];
+		auto passHeight = rects.y2[validIdx] - rects.y1[validIdx];
 		auto passArea_8 = _mm256_set1_epi32(passWidth * passHeight);
 
-		size_t passIdxTemp = passIdx;
+		size_t writeIdx = pass + 1;
 
-		for(size_t readIdx = passIdxTemp + 1; readIdx < rects.count; readIdx += 8)
+		for(size_t readIdx = pass + 1; readIdx < idx.size(); readIdx += 8)
 		{
-			int control = false;
-			auto validness_8 = _mm256_loadu_si256(reinterpret_cast<__m256i*>(rects.validness + readIdx));
-			control = _mm256_movemask_epi8(validness_8);
-			const size_t remainingCount = 8;
-
-			if(!control)
-			{
-				continue;
-			}
-
-			auto x1_8 = _mm256_loadu_si256(reinterpret_cast<__m256i*>(rects.x1 + readIdx));
-			auto x2_8 = _mm256_loadu_si256(reinterpret_cast<__m256i*>(rects.x2 + readIdx));
-			auto y1_8 = _mm256_loadu_si256(reinterpret_cast<__m256i*>(rects.y1 + readIdx));
-			auto y2_8 = _mm256_loadu_si256(reinterpret_cast<__m256i*>(rects.y2 + readIdx));
+//			plBegin("dxAndXYGather");
+			auto idx_8 = _mm256_loadu_si256(reinterpret_cast<__m256i*>(idx.data() + readIdx));
+			auto x1_8 =  _mm256_i32gather_epi32(reinterpret_cast<const int *>(rects.x1), idx_8, 4);
+			auto x2_8 =  _mm256_i32gather_epi32(reinterpret_cast<const int *>(rects.x2), idx_8, 4);
+			auto y1_8 =  _mm256_i32gather_epi32(reinterpret_cast<const int *>(rects.y1), idx_8, 4);
+			auto y2_8 =  _mm256_i32gather_epi32(reinterpret_cast<const int *>(rects.y2), idx_8, 4);
+//			plEnd("dxAndXYGather");
 
 			auto isValid_8 = compareRectangles(readIdx,
 											   passX1_8,
@@ -112,25 +130,33 @@ void NMS_SIMD::nmsSimd1(const Rectangles& rects, float threshold)
 											   y2_8,
 											   threshold_8);
 
-			auto isValid_8i = _mm256_cvtps_epi32(isValid_8);
+//			plBegin("SetIdx");
+			auto isValid = _mm256_movemask_ps(isValid_8);
 
-			isValid_8i = _mm256_and_si256(isValid_8i, validness_8);
-			auto isValid = _mm256_movemask_ps(_mm256_castsi256_ps(isValid_8i));
-			_mm256_storeu_si256(reinterpret_cast<__m256i*>(rects.validness + readIdx), isValid_8i);
+			auto diff = idx.size() - readIdx - 8;
+			if(diff < 0)
+			{
+				isValid = isValid & ((1 << (8 - diff)) - 1);
+			}
 
 			if(!isFound && isValid)
 			{
-				for(size_t ele = 0; ele < remainingCount; ele++)
-				{
-					if(rects.validness[readIdx + ele])
-					{
-						isFound = true;
-						passIdx = readIdx + ele;
-						passCount++;
-						break;
-					}
-				}
+				passCount++;
+				isFound = true;
 			}
+
+			auto permuteMask = &_permuteMask[(isValid - 1) * 8];
+			auto permuteMask_8 = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(permuteMask));
+			auto denseIdx_8 = _mm256_permutevar8x32_epi32(idx_8, permuteMask_8);
+			_mm256_storeu_si256(reinterpret_cast<__m256i*>(idx.data() + writeIdx), denseIdx_8);
+			writeIdx += _popcnt32(isValid);
+//			plEnd("SetIdx");
 		}
 	}
+	plEnd("AllOfIt");
+
+	idx.resize(pass - 1);
+
+	plStopAndUninit();
+	return idx;
 }

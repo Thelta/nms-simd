@@ -10,7 +10,7 @@ add_library(nms-simd
 	nms-simd.cpp
 	nms-utils.h
 	nms-utils.cpp
-)
+		palanteer.h)
 if(${MSVC})
 	target_compile_options(nms-simd PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/arch:AVX2>)
 	target_compile_options(nms-simd PRIVATE $<$<CONFIG:Release>:/O2>)

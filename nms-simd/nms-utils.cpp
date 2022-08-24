@@ -3,7 +3,7 @@
 
 size_t NMS_SIMD::calculateSimdCount(size_t rectangleCount)
 {
-	return (rectangleCount + 7) / 8 * 8 + 7;
+	return (rectangleCount + 7);
 }
 
 void NMS_SIMD::createRectangles(NMS_SIMD::Rectangles *rectangles, size_t rectangleCount)
