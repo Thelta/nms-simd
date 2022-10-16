@@ -115,21 +115,14 @@ void NMS_SIMD::nmsSimd1(const Rectangles& rects, float threshold)
 			auto isValid_8i = _mm256_cvtps_epi32(isValid_8);
 
 			isValid_8i = _mm256_and_si256(isValid_8i, validness_8);
-			auto isValid = _mm256_movemask_ps(_mm256_castsi256_ps(isValid_8i));
 			_mm256_storeu_si256(reinterpret_cast<__m256i*>(rects.validness + readIdx), isValid_8i);
 
-			if(!isFound && isValid)
+			int isValid;
+			if (!isFound && (isValid = _mm256_movemask_ps(_mm256_castsi256_ps(isValid_8i))))
 			{
-				for(size_t ele = 0; ele < remainingCount; ele++)
-				{
-					if(rects.validness[readIdx + ele])
-					{
-						isFound = true;
-						passIdx = readIdx + ele;
-						passCount++;
-						break;
-					}
-				}
+				isFound = true;
+				passIdx = _tzcnt_u32(isValid) + readIdx;
+				passCount++;
 			}
 		}
 	}
