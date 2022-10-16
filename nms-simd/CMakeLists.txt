@@ -16,6 +16,7 @@ if(${MSVC})
 	target_compile_options(nms-simd PRIVATE $<$<CONFIG:Release>:/O2>)
 else()
 	target_compile_options(nms-simd PRIVATE "-mavx2")
+	target_compile_options(nms-simd PRIVATE "-mbmi")
 	target_compile_options(nms-simd PRIVATE $<$<CONFIG:Release>:-O2>)
 endif ()
 
