@@ -13,17 +13,17 @@
 #warning "Unknown compiler, can't force inlining."
 #endif
 
-NMS_INLINE __m256 compareRectangles(size_t readIdx,
-									   __m256i passX1_8,
-									   __m256i passX2_8,
-									   __m256i passY1_8,
-									   __m256i passY2_8,
-									   __m256i passArea_8,
-									   __m256i x1_8,
-									   __m256i x2_8,
-									   __m256i y1_8,
-									   __m256i y2_8,
-									   __m256 threshold_8)
+NMS_INLINE static __m256 compareRectangles(size_t readIdx,
+										   __m256i passX1_8,
+										   __m256i passX2_8,
+										   __m256i passY1_8,
+										   __m256i passY2_8,
+										   __m256i passArea_8,
+										   __m256i x1_8,
+										   __m256i x2_8,
+										   __m256i y1_8,
+										   __m256i y2_8,
+										   __m256 threshold_8)
 {
 	const auto zero_8 = _mm256_set1_epi32(0);
 	const auto one_8 = _mm256_set1_epi32(1);
@@ -115,21 +115,14 @@ void NMS_SIMD::nmsSimd1(const Rectangles& rects, float threshold)
 			auto isValid_8i = _mm256_cvtps_epi32(isValid_8);
 
 			isValid_8i = _mm256_and_si256(isValid_8i, validness_8);
-			auto isValid = _mm256_movemask_ps(_mm256_castsi256_ps(isValid_8i));
 			_mm256_storeu_si256(reinterpret_cast<__m256i*>(rects.validness + readIdx), isValid_8i);
 
-			if(!isFound && isValid)
+			int isValid;
+			if (!isFound && (isValid = _mm256_movemask_ps(_mm256_castsi256_ps(isValid_8i))))
 			{
-				for(size_t ele = 0; ele < remainingCount; ele++)
-				{
-					if(rects.validness[readIdx + ele])
-					{
-						isFound = true;
-						passIdx = readIdx + ele;
-						passCount++;
-						break;
-					}
-				}
+				isFound = true;
+				passIdx = _tzcnt_u32(isValid) + readIdx;
+				passCount++;
 			}
 		}
 	}
