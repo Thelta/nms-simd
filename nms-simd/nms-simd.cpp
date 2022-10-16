@@ -13,17 +13,17 @@
 #warning "Unknown compiler, can't force inlining."
 #endif
 
-NMS_INLINE __m256 compareRectangles(size_t readIdx,
-									   __m256i passX1_8,
-									   __m256i passX2_8,
-									   __m256i passY1_8,
-									   __m256i passY2_8,
-									   __m256i passArea_8,
-									   __m256i x1_8,
-									   __m256i x2_8,
-									   __m256i y1_8,
-									   __m256i y2_8,
-									   __m256 threshold_8)
+NMS_INLINE static __m256 compareRectangles(size_t readIdx,
+										   __m256i passX1_8,
+										   __m256i passX2_8,
+										   __m256i passY1_8,
+										   __m256i passY2_8,
+										   __m256i passArea_8,
+										   __m256i x1_8,
+										   __m256i x2_8,
+										   __m256i y1_8,
+										   __m256i y2_8,
+										   __m256 threshold_8)
 {
 	const auto zero_8 = _mm256_set1_epi32(0);
 	const auto one_8 = _mm256_set1_epi32(1);
